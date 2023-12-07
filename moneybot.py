@@ -1,13 +1,24 @@
 import telebot
+import os
 
-bot = telebot.TeleBot("6916771092:AAH8WWkj9T5RAqy_4KATGrtuP_-B7UTpKQA", parse_mode=None) # You can set parse_mode by default. HTML or MARKDOWN
+API_KEY = os.getenv('API_KEY')
 
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-	bot.reply_to(message, "Howdy, how are you doing?")
-	
-@bot.message_handler(func=lambda m: True)
-def echo_all(message):
-	bot.reply_to(message, message.text)
-	
+bot = telebot.TeleBot(API_KEY)
+
+# Handles '/start'
+@bot.message_handler(commands=['start'])
+def handle_start(message):
+	bot.reply_to(message, "What do you want to do today?")
+
+# Handles help
+@bot.message_handler(commands=['help'])
+def handle_help(message):
+	bot.reply_to(message, "Who owe you money?\nAdd people who owe you money")
+
+# Add people who owe me money
+# - Calculator
+# Check who owes me money
+# Reminder of who owe me money
+# Add bot to group chat and Leave when paid
+
 bot.infinity_polling()
