@@ -15,10 +15,16 @@ def handle_start(message):
 def handle_help(message):
 	bot.reply_to(message, "Who owe you money?\nAdd people who owe you money")
 
+# Main Functionalities:
+# Handle start and help
+# - Start
+# - Help: Drop down menu? / Functions inside
 # Add people who owe me money
-# - Calculator
+# - How to calculate: Each person / Split among people
+# - Calculator: create keypad?
+# - QOL: GST + SST / GST / SST
+# - Splitting among people
 # Check who owes me money
 # Reminder of who owe me money
-# Add bot to group chat and Leave when paid
 
 bot.infinity_polling()
