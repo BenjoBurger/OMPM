@@ -5,7 +5,7 @@ Handle start and help
 - Help: Drop down menu? / Functions inside
 Add people who owe me money
 - How to calculate: Each person / Split among people
-- Calculator: create keypad?
+- Calculator: Create keypad?
 - QOL: GST + SST / GST / SST
 - Splitting among people
 Check who owes me money
@@ -16,3 +16,6 @@ Add bot to chat and leave when paid:
 1. Add using telehandle?
 2. Private / group chat?
 3. How to confirm payment?
+
+TODO:
+1. How to connect the bot to a database
