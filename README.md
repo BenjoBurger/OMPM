@@ -8,7 +8,7 @@ Add people who owe me money
 - Calculator: Create keypad?
 - QOL: GST + SST / GST / SST
 - Splitting among people
-Check who owes me money
+Check who owes me money: Individual costs + total costs
 Reminder of who owe me money
 
 Additional:

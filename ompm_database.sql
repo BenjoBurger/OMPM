@@ -1,0 +1,8 @@
+CREATE TABLE user (
+    id INTEGER PRIMARY KEY
+);
+
+CREATE TABLE money_owed (
+    id INTEGER PRIMARY KEY,
+    money INTEGER NOT NULL
+);
