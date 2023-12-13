@@ -1,7 +1,10 @@
 import telebot
 from telebot import types
+from dotenv import load_dotenv
 import os
 import sqlite3
+
+load_dotenv()
 
 API_KEY = os.getenv('API_KEY')
 
@@ -44,46 +47,37 @@ def handle_who(message):
 
 # Handles '/back'
 @bot.message_handler(commands=['back'])
-def handle_back(message):
+def handle_back():
 	pass
 
 def get_name(message):
 	current_name = message.text
-	bot.reply_to(message, f"{current_name} owes you money")
-	bot.reply_to(message, "How much money is owed?")
-	bot.register_next_step_handler(message, get_money)
+	try:
+		current_name = str(message.text)
+		bot.reply_to(message, f"{current_name} owes you money")
+		bot.reply_to(message, "How much money is owed?")
+		bot.register_next_step_handler(message, get_money)
+	except ValueError:
+		bot.reply_to(message, "Invalid input. Please enter a valid name.")
+	
 	
 def get_money(message):
-		try:
-			current_money = float(message.text)
-			bot.reply_to(message, f"{current_name} owes you ${current_money}")
-		except ValueError:
-			bot.reply_to(message, "Invalid input. Please enter a valid amount.")
+	try:
+		current_money = float(message.text)
+		bot.reply_to(message, f"{current_name} owes you ${current_money}")
+		bot.register_next_step_handler(message, record_money)
+	except ValueError:
+		bot.reply_to(message, "Invalid input. Please enter a valid amount.")
 
-def handle_confirm(message):
-	markup = types.InlineKeyboardMarkup()
-	btn1 = types.InlineKeyboardButton("Yes", callback_data="Yes")
-	btn2 = types.InlineKeyboardButton("No", callback_data="No")
-	markup.add(btn1,btn2)
-	bot.send_message(message.chat.id, reply_markup=markup)
+def record_money(message):
+	# cursor.execute("SELECT * FROM user WHERE id=?", (current_name,))
+	# if not cursor.fetchone():
+	# 	cursor.execute("INSERT INTO user (id) VALUES (?)", (current_name,))
+	# cursor.execute("INSERT INTO money_owed (id, money) VALUES (?, ?)", (current_name, current_money))
 
-@bot.callback_query_handler(func=lambda call: True)
-def callback_handler(call):
-	if (call.data == "Yes"):
-		confirmation = 1
-	return
+	# conn.commit()
 
+	bot.reply_to(message, "Payment Recorded!")
 
-# Main Functionalities:
-# Handle start and help
-# - Start
-# - Help: Drop down menu? / Functions inside
-# Add people who owe me money
-# - How to calculate: Each person / Split among people
-# - Calculator: create keypad?
-# - QOL: GST + SST / GST / SST
-# - Splitting among people
-# Check who owes me money
-# Reminder of who owe me money
 
 bot.polling()
