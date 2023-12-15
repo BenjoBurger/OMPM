@@ -1,9 +1,15 @@
-CREATE TABLE user (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY
+);
+
+CREATE TABLE borrowers (
+    username VARCHAR PRIMARY KEY
 );
 
 CREATE TABLE money_owed (
     id INTEGER PRIMARY KEY,
-    money INTEGER NOT NULL
+    title TEXT,
+    amount INTEGER,
+    ah_long INTEGER,
+    borrower VARCHAR
 );

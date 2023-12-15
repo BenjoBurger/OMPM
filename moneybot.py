@@ -3,6 +3,7 @@ from telebot import types
 from dotenv import load_dotenv
 import os
 import sqlite3
+import random
 
 load_dotenv()
 
@@ -10,12 +11,11 @@ API_KEY = os.getenv('API_KEY')
 
 bot = telebot.TeleBot(API_KEY)
 
-conn = sqlite3.connect("database.db", check_same_thread=False)
-cursor = conn.cursor()
-
-confirmation = None
-current_name = None
+current_borrower = None
+current_ahlong = None
 current_money = None
+current_title = None
+new_id = None
 
 # Handles '/start'
 @bot.message_handler(commands=['start'])
@@ -23,61 +23,112 @@ def handle_start(message):
 	markup = types.ReplyKeyboardMarkup(one_time_keyboard=True)
 	btn1 = types.KeyboardButton("/add")
 	btn2 = types.KeyboardButton("/who")
-	btn3 = types.KeyboardButton("/help")
-	btn4 = types.KeyboardButton("/back")
-	markup.add(btn1,btn2)
-	markup.add(btn3,btn4)
+	btn3 = types.KeyboardButton("/paid")
+	btn4 = types.KeyboardButton("/help")
+	btn5 = types.KeyboardButton("/back")
+	markup.add(btn1,btn2,btn3)
+	markup.add(btn4,btn5)
 	bot.send_message(chat_id=message.chat.id, text="What do you want to do today?", reply_markup=markup)
 
 # Handles '/help'
 @bot.message_handler(commands=['help'])
 def handle_help(message):
-	bot.reply_to(message, "/add - Add people who owe you money\n/who - Who owe you money?")
+	bot.reply_to(message, "/add - Add people who owe you money\n/who - Who owe you money?\n/paid - Remove people who paid you")
 
 # Handles '/add'
 @bot.message_handler(commands=['add'])
 def handle_add(message):
-	bot.reply_to(message, "Who owes you money?")
-	bot.register_next_step_handler(message, get_name)
+	bot.send_message(message.chat.id, "Who owes you money?")
+	bot.register_next_step_handler(message, get_borrower)
 	
 # Handles '/who'
 @bot.message_handler(commands=['who'])
 def handle_who(message):
-	bot.reply_to(message, "People owing you money")
+	bot.send_message(message.chat.id, "People owing you money")
+
+# Handles '/paid'
+@bot.message_handler(commands=['paid'])
+def handle_who(message):
+	bot.send_message(message.chat.id, "Who paid you?")
 
 # Handles '/back'
 @bot.message_handler(commands=['back'])
 def handle_back():
 	pass
 
-def get_name(message):
-	current_name = message.text
-	try:
-		current_name = str(message.text)
-		bot.reply_to(message, f"{current_name} owes you money")
-		bot.reply_to(message, "How much money is owed?")
-		bot.register_next_step_handler(message, get_money)
-	except ValueError:
-		bot.reply_to(message, "Invalid input. Please enter a valid name.")
+# def get_name(message):
+# 	global current_name
+# 	try:
+# 		current_name = str(message.text)
+# 		bot.send_message(message.chat.id, f"{current_name} owes you money")
+# 		bot.send_message(message.chat.id, "How much money is owed?")
+# 		bot.register_next_step_handler(message, callback=get_money)
+# 	except ValueError:
+# 		bot.reply_to(message, "Invalid input. Please enter a valid name.")
+# 		bot.register_next_step_handler(message, get_name)
 	
-	
+def get_borrower(message):
+    global current_borrower
+    current_borrower = message.text
+
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM borrowers WHERE username = ?', (current_borrower,))
+    existing_user = cursor.fetchone()
+
+    if existing_user:
+        bot.send_message(message.chat.id, f"{existing_user[0]} still owes you money!")
+    else:
+        cursor.execute('INSERT INTO borrowers (username) VALUES (?)', (current_borrower,))
+        conn.commit()
+        bot.send_message(message.chat.id, f"{current_borrower}'s name has been saved.")
+
+    conn.close()
+    bot.send_message(message.chat.id, f"How much {current_borrower} owe you?")
+    bot.register_next_step_handler(message, callback=get_money)
+
 def get_money(message):
+	global current_money
+
 	try:
 		current_money = float(message.text)
-		bot.reply_to(message, f"{current_name} owes you ${current_money}")
-		bot.register_next_step_handler(message, record_money)
+		bot.send_message(message.chat.id, f"{current_borrower} owes you ${current_money}")
+		bot.send_message(message.chat.id, "Name this debt")
+		bot.register_next_step_handler(message, callback=get_title)
 	except ValueError:
 		bot.reply_to(message, "Invalid input. Please enter a valid amount.")
+		bot.register_next_step_handler(message, callback=get_money)
+
+def get_title(message):
+	global current_title
+	current_title = message.text
+	bot.send_message(message.chat.id, "Are the details correct?")
+	bot.send_message(message.chat.id, f"Title: {current_title}\nAmount Owed: {current_money}\nBorrower: {current_borrower}")
+	get_confirmation(message)
+
+def get_confirmation(message):
+	# markup = types.InlineKeyboardMarkup()
+	# btn1 = types.InlineKeyboardButton(text="Title")
+	# btn2 = types.InlineKeyboardButton(text="Amount")
+	# btn3 = types.InlineKeyboardButton(text="Borrower")
+	# btn4 = types.InlineKeyboardButton(text="All Good!")
+	# markup.add(btn1,btn2,btn3)
+	# markup.add(btn4)
+	# bot.send_message(chat_id=message.chat.id, text="Click to edit any values", reply_markup=markup)
+	record_money(message)
 
 def record_money(message):
-	# cursor.execute("SELECT * FROM user WHERE id=?", (current_name,))
-	# if not cursor.fetchone():
-	# 	cursor.execute("INSERT INTO user (id) VALUES (?)", (current_name,))
-	# cursor.execute("INSERT INTO money_owed (id, money) VALUES (?, ?)", (current_name, current_money))
+	user_id = message.from_user.id
+	new_id = int(random.random()*10000000000)
+	conn = sqlite3.connect("database.db")
+	cursor = conn.cursor()
+	cursor.execute('INSERT INTO users (id) VALUES (?)', (user_id,))
+	cursor.execute('INSERT INTO money_owed (id, title, amount, ah_long, borrower) VALUES (?,?,?,?,?)', (new_id,current_title,current_money,user_id,current_borrower))
+	conn.commit()
+	bot.send_message(message.chat.id, "Payment Recorded!", allow_sending_without_reply=True)
 
-	# conn.commit()
-
-	bot.reply_to(message, "Payment Recorded!")
+	conn.close()
 
 
-bot.polling()
+if __name__ == "__main__":
+    bot.polling(none_stop=True)
