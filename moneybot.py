@@ -34,12 +34,6 @@ def handle_start(message):
 @bot.message_handler(commands=['help'])
 def handle_help(message):
 	bot.reply_to(message, "/add - Add people who owe you money\n/who - Who owe you money?\n/paid - Remove people who paid you")
-
-# Handles '/add'
-@bot.message_handler(commands=['add'])
-def handle_add(message):
-	bot.send_message(message.chat.id, "Who owes you money?")
-	bot.register_next_step_handler(message, get_borrower)
 	
 # Handles '/who'
 @bot.message_handler(commands=['who'])
@@ -63,25 +57,52 @@ def in_depth_debt(message):
 
 # Handles '/paid'
 @bot.message_handler(commands=['paid'])
-def handle_who(message):
+def handle_paid(message):
 	bot.send_message(message.chat.id, "Who paid you?")
+	bot.register_next_step_handler(message, check_borrower)
+
+def check_borrower(message):
+	global current_borrower
+	current_borrower = message.text
+	conn = sqlite3.connect('database.db')
+	cursor = conn.cursor()
+	cursor.execute('SELECT * FROM borrowers WHERE username = ?', (current_borrower,))
+	existing_user = cursor.fetchone()
+	conn.close()
+
+	if existing_user:
+		markup = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+		btn1 = types.KeyboardButton("Yes")
+		btn2 = types.KeyboardButton("No")
+		markup.add(btn1,btn2)
+		bot.send_message(chat_id=message.chat.id, text=f"Confirm {existing_user[0]} has paid you?", reply_markup=markup)
+		bot.register_next_step_handler(message, remove_borrower)
+	else:
+		bot.send_message(message.chat.id, f"{current_borrower}'s name does not exist in the database. Use /who to check who owes you money!")
+
+def remove_borrower(message):
+	if message.text.lower() == 'yes':
+		conn = sqlite3.connect('database.db')
+		cursor = conn.cursor()
+		cursor.execute('DELETE FROM borrowers WHERE username = ?', (current_borrower,))
+		cursor.execute('DELETE FROM money_owed WHERE borrower = ?', (current_borrower,))
+		conn.commit()
+		conn.close()
+		bot.send_message(message.chat.id, f"{current_borrower}'s name has been removed!")
+	else:
+		pass
 
 # Handles '/back'
 @bot.message_handler(commands=['back'])
 def handle_back():
 	pass
 
-def get_name(message):
-	global current_name
-	try:
-		current_name = str(message.text)
-		bot.send_message(message.chat.id, f"{current_name} owes you money")
-		# bot.send_message(message.chat.id, "How much money is owed?")
-		# bot.register_next_step_handler(message, callback=get_money)
-	except ValueError:
-		bot.reply_to(message, "Invalid input. Please enter a valid name.")
-		bot.register_next_step_handler(message, get_name)
-	
+# Handles '/add'
+@bot.message_handler(commands=['add'])
+def handle_add(message):
+	bot.send_message(message.chat.id, "Who owes you money?")
+	bot.register_next_step_handler(message, get_borrower)
+
 def get_borrower(message):
     global current_borrower
     current_borrower = message.text
