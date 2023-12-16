@@ -44,7 +44,22 @@ def handle_add(message):
 # Handles '/who'
 @bot.message_handler(commands=['who'])
 def handle_who(message):
-	bot.send_message(message.chat.id, "People owing you money")
+	bot.send_message(message.chat.id, "People owing you money:")
+
+	conn = sqlite3.connect('database.db')
+	cursor = conn.cursor()
+
+	cursor.execute('SELECT borrower FROM money_owed')
+	borrowers = cursor.fetchall()
+	for borrower in borrowers:
+		cursor.execute('SELECT SUM(amount) FROM money_owed WHERE borrower = ?', borrower)
+		amount = cursor.fetchone()
+		bot.send_message(message.chat.id, f"{borrower[0]} owes you ${amount[0]}")
+
+	conn.close()
+
+def in_depth_debt(message):
+	pass
 
 # Handles '/paid'
 @bot.message_handler(commands=['paid'])
@@ -56,16 +71,16 @@ def handle_who(message):
 def handle_back():
 	pass
 
-# def get_name(message):
-# 	global current_name
-# 	try:
-# 		current_name = str(message.text)
-# 		bot.send_message(message.chat.id, f"{current_name} owes you money")
-# 		bot.send_message(message.chat.id, "How much money is owed?")
-# 		bot.register_next_step_handler(message, callback=get_money)
-# 	except ValueError:
-# 		bot.reply_to(message, "Invalid input. Please enter a valid name.")
-# 		bot.register_next_step_handler(message, get_name)
+def get_name(message):
+	global current_name
+	try:
+		current_name = str(message.text)
+		bot.send_message(message.chat.id, f"{current_name} owes you money")
+		# bot.send_message(message.chat.id, "How much money is owed?")
+		# bot.register_next_step_handler(message, callback=get_money)
+	except ValueError:
+		bot.reply_to(message, "Invalid input. Please enter a valid name.")
+		bot.register_next_step_handler(message, get_name)
 	
 def get_borrower(message):
     global current_borrower
@@ -107,15 +122,28 @@ def get_title(message):
 	get_confirmation(message)
 
 def get_confirmation(message):
-	# markup = types.InlineKeyboardMarkup()
-	# btn1 = types.InlineKeyboardButton(text="Title")
-	# btn2 = types.InlineKeyboardButton(text="Amount")
-	# btn3 = types.InlineKeyboardButton(text="Borrower")
-	# btn4 = types.InlineKeyboardButton(text="All Good!")
-	# markup.add(btn1,btn2,btn3)
-	# markup.add(btn4)
-	# bot.send_message(chat_id=message.chat.id, text="Click to edit any values", reply_markup=markup)
-	record_money(message)
+	markup = types.InlineKeyboardMarkup()
+	btn1 = types.InlineKeyboardButton(text="Title", callback_data='wrong title')
+	btn2 = types.InlineKeyboardButton(text="Amount", callback_data='wrong amount')
+	btn3 = types.InlineKeyboardButton(text="Borrower", callback_data='wrong borrower')
+	btn4 = types.InlineKeyboardButton(text="All Good!", callback_data='yay')
+	markup.add(btn1,btn2,btn3)
+	markup.add(btn4)
+	bot.send_message(chat_id=message.chat.id, text="Click to edit any values", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: True)
+def handle_callback_query(call):
+	if call.data == 'wrong title':
+		bot.send_message(call.message.chat.id, "Rename this debt")
+		bot.register_next_step_handler(call.message, callback=get_title)
+	if call.data == 'wrong amount':
+		bot.send_message(call.message.chat.id, f"How much {current_borrower} owe you?")
+		bot.register_next_step_handler(call.message, callback=get_money)
+	if call.data == 'wrong borrower':
+		bot.send_message(call.message.chat.id, "Who owes you money?")
+		bot.register_next_step_handler(call.message, callback=get_borrower)
+	if call.data == 'yay':
+		record_money(call.message)
 
 def record_money(message):
 	user_id = message.from_user.id
