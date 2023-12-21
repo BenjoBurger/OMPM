@@ -11,11 +11,12 @@ API_KEY = os.getenv('API_KEY')
 
 bot = telebot.TeleBot(API_KEY)
 
-current_borrower = None
-current_ahlong = None
-current_money = None
-current_title = None
-new_id = None
+debt_dict = {}
+class Debt:
+	def __init__(self, Name):
+		self.borrower = Name
+		self.amount = None
+		self.title = None
 
 # Handles '/start'
 @bot.message_handler(commands=['start'])
@@ -38,18 +39,20 @@ def handle_help(message):
 # Handles '/who'
 @bot.message_handler(commands=['who'])
 def handle_who(message):
-	bot.send_message(message.chat.id, "People owing you money:")
-
+	
 	conn = sqlite3.connect('database.db')
 	cursor = conn.cursor()
 
 	cursor.execute('SELECT borrower FROM money_owed')
 	borrowers = cursor.fetchall()
-	for borrower in borrowers:
-		cursor.execute('SELECT SUM(amount) FROM money_owed WHERE borrower = ?', borrower)
-		amount = cursor.fetchone()
-		bot.send_message(message.chat.id, f"{borrower[0]} owes you ${amount[0]}")
-
+	if borrowers:
+		bot.send_message(message.chat.id, "People owing you money:")
+		for borrower in borrowers:
+			cursor.execute('SELECT SUM(amount) FROM money_owed WHERE borrower = ?', borrower)
+			amount = cursor.fetchone()
+			bot.send_message(message.chat.id, f"{borrower[0]} owes you ${amount[0]}")
+	else:
+		bot.send_message(message.chat.id, "No one owes you money!")
 	conn.close()
 
 def in_depth_debt(message):
@@ -62,8 +65,8 @@ def handle_paid(message):
 	bot.register_next_step_handler(message, check_borrower)
 
 def check_borrower(message):
-	global current_borrower
 	current_borrower = message.text
+	debt_dict[message.chat.id] = Debt(current_borrower)
 	conn = sqlite3.connect('database.db')
 	cursor = conn.cursor()
 	cursor.execute('SELECT * FROM borrowers WHERE username = ?', (current_borrower,))
@@ -79,8 +82,11 @@ def check_borrower(message):
 		bot.register_next_step_handler(message, remove_borrower)
 	else:
 		bot.send_message(message.chat.id, f"{current_borrower}'s name does not exist in the database. Use /who to check who owes you money!")
+		del debt_dict[message.chat.id]
 
 def remove_borrower(message):
+	user_id = message.chat.id
+	current_borrower = debt_dict[user_id].borrower
 	if message.text.lower() == 'yes':
 		conn = sqlite3.connect('database.db')
 		cursor = conn.cursor()
@@ -88,13 +94,15 @@ def remove_borrower(message):
 		cursor.execute('DELETE FROM money_owed WHERE borrower = ?', (current_borrower,))
 		conn.commit()
 		conn.close()
-		bot.send_message(message.chat.id, f"{current_borrower}'s name has been removed!")
+		bot.send_message(user_id, f"{current_borrower}'s name has been removed!")
+		del debt_dict[user_id]
 	else:
-		pass
+		bot.send_message(user_id, f"Remind {current_borrower} to pay!")
+		del debt_dict[user_id]
 
 # Handles '/back'
 @bot.message_handler(commands=['back'])
-def handle_back():
+def handle_back(message):
 	pass
 
 # Handles '/add'
@@ -104,42 +112,53 @@ def handle_add(message):
 	bot.register_next_step_handler(message, get_borrower)
 
 def get_borrower(message):
-    global current_borrower
-    current_borrower = message.text
+	user_id = message.chat.id
+	current_borrower = message.text
+	debt = Debt(current_borrower)
+	debt_dict[user_id] = debt
+	
+	conn = sqlite3.connect('database.db')
+	cursor = conn.cursor()
+	cursor.execute('SELECT * FROM borrowers WHERE username = ?', (current_borrower,))
+	existing_user = cursor.fetchone()
 
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM borrowers WHERE username = ?', (current_borrower,))
-    existing_user = cursor.fetchone()
+	if existing_user:
+		bot.send_message(message.chat.id, f"{existing_user[0]} still owes you money!")
+	else:
+		cursor.execute('INSERT INTO borrowers (username) VALUES (?)', (current_borrower,))
+		conn.commit()
+		bot.send_message(message.chat.id, f"{current_borrower}'s name has been saved.")
 
-    if existing_user:
-        bot.send_message(message.chat.id, f"{existing_user[0]} still owes you money!")
-    else:
-        cursor.execute('INSERT INTO borrowers (username) VALUES (?)', (current_borrower,))
-        conn.commit()
-        bot.send_message(message.chat.id, f"{current_borrower}'s name has been saved.")
+	conn.close()
+	bot.send_message(message.chat.id, f"How much {current_borrower} owe you?")
+	bot.register_next_step_handler(message, callback=get_amount)
 
-    conn.close()
-    bot.send_message(message.chat.id, f"How much {current_borrower} owe you?")
-    bot.register_next_step_handler(message, callback=get_money)
-
-def get_money(message):
-	global current_money
-
+def get_amount(message):
+	user_id = message.chat.id
 	try:
-		current_money = float(message.text)
-		bot.send_message(message.chat.id, f"{current_borrower} owes you ${current_money}")
+		current_borrower = debt_dict[user_id].borrower
+		current_amount = float(message.text)
+		bot.send_message(message.chat.id, f"{current_borrower} owes you ${current_amount}")
+		debt = debt_dict[user_id]
+		debt.amount = current_amount
+
 		bot.send_message(message.chat.id, "Name this debt")
 		bot.register_next_step_handler(message, callback=get_title)
+
 	except ValueError:
 		bot.reply_to(message, "Invalid input. Please enter a valid amount.")
-		bot.register_next_step_handler(message, callback=get_money)
+		bot.register_next_step_handler(message, callback=get_amount)
 
 def get_title(message):
-	global current_title
+	user_id = message.chat.id
 	current_title = message.text
+	debt = debt_dict[user_id]
+	debt.title = current_title
+	current_borrower = debt.borrower
+	current_amount = debt.amount
+	
 	bot.send_message(message.chat.id, "Are the details correct?")
-	bot.send_message(message.chat.id, f"Title: {current_title}\nAmount Owed: {current_money}\nBorrower: {current_borrower}")
+	bot.send_message(message.chat.id, f"Title: {current_title}\nAmount Owed: {current_amount}\nBorrower: {current_borrower}")
 	get_confirmation(message)
 
 def get_confirmation(message):
@@ -159,7 +178,7 @@ def handle_callback_query(call):
 		bot.register_next_step_handler(call.message, callback=get_title)
 	if call.data == 'wrong amount':
 		bot.send_message(call.message.chat.id, f"How much {current_borrower} owe you?")
-		bot.register_next_step_handler(call.message, callback=get_money)
+		bot.register_next_step_handler(call.message, callback=get_amount)
 	if call.data == 'wrong borrower':
 		bot.send_message(call.message.chat.id, "Who owes you money?")
 		bot.register_next_step_handler(call.message, callback=get_borrower)
@@ -167,16 +186,31 @@ def handle_callback_query(call):
 		record_money(call.message)
 
 def record_money(message):
-	user_id = message.from_user.id
+	user_id = message.chat.id
 	new_id = int(random.random()*10000000000)
+	debt = debt_dict[user_id]
+	current_borrower = debt.borrower
+	current_amount = debt.amount
+	current_title = debt.title
+
 	conn = sqlite3.connect("database.db")
 	cursor = conn.cursor()
-	cursor.execute('INSERT INTO users (id) VALUES (?)', (user_id,))
-	cursor.execute('INSERT INTO money_owed (id, title, amount, ah_long, borrower) VALUES (?,?,?,?,?)', (new_id,current_title,current_money,user_id,current_borrower))
+	
+	cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+	existing_user = cursor.fetchone()
+
+	if existing_user:
+		pass
+	else:
+		cursor.execute('INSERT INTO users (id) VALUES (?)', (user_id,))
+		conn.commit()
+	cursor.execute('INSERT INTO money_owed (id, title, amount, ah_long, borrower) VALUES (?,?,?,?,?)', (new_id,current_title,current_amount,user_id,current_borrower))
 	conn.commit()
 	bot.send_message(message.chat.id, "Payment Recorded!", allow_sending_without_reply=True)
 
 	conn.close()
+
+	del debt_dict[user_id]
 
 
 if __name__ == "__main__":
