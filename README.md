@@ -1,2 +1,19 @@
-# OMPM TELEBOT
-Link: https://docs.google.com/document/d/1fu5yh1suVo4T5D3b1kv-YbIWTfrTCe5IiHbhlEmunoc/edit?usp=sharing
+# OMPM
+## About the Project
+Always forgetting who owes you money? This bot helps to keep track of who owes you money!
+
+[Link to bot](https://t.me/inomoney_bot)
+
+### Tech Stack
+- Python 3.12
+- Sqlite3
+- pythonAnywhere
+
+## Usage
+### Commands:
+- /start - Introduction of bot
+- /help - Explains what each function does
+- /add - Add a new debt to the database
+- /who - See who is currently owing you money
+- /paid - Remove the person who has paid you from the database
+
