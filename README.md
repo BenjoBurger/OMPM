@@ -17,3 +17,8 @@ Always forgetting who owes you money? This bot helps to keep track of who owes y
 - /who - See who is currently owing you money
 - /paid - Remove the person who has paid you from the database
 
+## Future Plans
+- Make it work in group chats
+- Reminder Function
+- Record payment for multiple people at once
+- Foreign currency
