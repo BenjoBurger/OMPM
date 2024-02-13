@@ -1,6 +1,5 @@
 CREATE TABLE users (
-    id INTEGER PRIMARY KEY,
-    username VARCHAR
+    id INTEGER PRIMARY KEY
 );
 
 CREATE TABLE borrowers (

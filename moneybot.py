@@ -173,6 +173,7 @@ def get_confirmation(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback_query(call):
+	current_borrower = debt_dict[call.message.chat.id].borrower
 	if call.data == 'wrong title':
 		bot.send_message(call.message.chat.id, "Rename this debt")
 		bot.register_next_step_handler(call.message, callback=get_title)
